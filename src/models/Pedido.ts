@@ -103,4 +103,31 @@ export const PedidoModel = {
     }
     return listaPedidos;
   },
+
+  async deletar(id: number): Promise<boolean> {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const queryItens =
+        "SELECT produto_id, quantidade FROM itens_pedido WHERE pedido_id = $1";
+      const { rows } = await client.query(queryItens, [id]);
+      for (const row of rows) {
+        await client.query(
+          "UPDATE produtos SET estoque = estoque + $1 WHERE id = $2",
+          [row.quantidade, row.produto_id]
+        );
+      }
+      const result = await client.query("DELETE FROM pedidos WHERE id = $1", [
+        id,
+      ]);
+      await client.query("COMMIT");
+      return (result.rowCount ?? 0) > 0;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  },
+  async mudarStatus() {},
 };
